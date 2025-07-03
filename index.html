@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Car Snake Game with Progress Bar</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #2c435a;
+    }
+    canvas {
+      position: absolute;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<canvas id="uiCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const verticalOffset = 40; // You can adjust this number (e.g. 50, 60, etc.)
+
+
+const uiCanvas = document.getElementById('uiCanvas');
+const uiCtx = uiCanvas.getContext('2d');
+uiCanvas.width = canvas.width;
+uiCanvas.height = 60;
+uiCanvas.style.top = '0px';
+uiCanvas.style.position = 'absolute';
+
+let gridSize = 32;
+let municipios = [];
+let cities = [];
+let targetCity = null;
+let score = 0;
+let totalCars = 0;
+
+let snake = {
+  x: 300,
+  y: 300,
+  dx: gridSize,
+  dy: 0,
+  cells: [],
+  maxCells: 4
+};
+
+let geoBounds = {
+  minX: Infinity, minY: Infinity,
+  maxX: -Infinity, maxY: -Infinity
+};
+let geoScale = 1, geoOffsetX = 0, geoOffsetY = 0;
+
+const carImage = new Image();
+carImage.src = 'car.png';
+
+let frameCount = 0;
+let blink = true;
+const blinkInterval = 30;
+const gameSpeed = 5;
+
+Promise.all([
+  fetch('municipios.geojson').then(res => res.json()),
+  fetch('vehiculos-total.geojson').then(res => res.json())
+]).then(([muniData, cityData]) => {
+  computeGeoBounds(muniData);
+  setGeoProjection(canvas.width, canvas.height);
+  municipios = muniData.features.map(f => f.geometry);
+
+  cities = cityData.features.map(f => {
+    const [lon, lat] = f.geometry.coordinates;
+    const vehiculos = parseInt(f.properties['Total-vehiculos']) || 0;
+    totalCars += vehiculos;
+    return {
+      etiqueta: f.properties.ETIQUETA || "Ciudad",
+      lon,
+      lat,
+      x: projectX(lon),
+      y: projectY(lat),
+      vehiculos
+    };
+  });
+
+  pickNewTarget();
+  requestAnimationFrame(gameLoop);
+});
+
+function computeGeoBounds(geojson) {
+  geojson.features.forEach(f => {
+    const coords = f.geometry.type === "Polygon"
+      ? f.geometry.coordinates.flat(1)
+      : f.geometry.coordinates.flat(2);
+    coords.forEach(([lon, lat]) => {
+      geoBounds.minX = Math.min(geoBounds.minX, lon);
+      geoBounds.maxX = Math.max(geoBounds.maxX, lon);
+      geoBounds.minY = Math.min(geoBounds.minY, lat);
+      geoBounds.maxY = Math.max(geoBounds.maxY, lat);
+    });
+  });
+}
+
+function setGeoProjection(width, height) {
+  const padding = 50;
+  const geoWidth = geoBounds.maxX - geoBounds.minX;
+  const geoHeight = geoBounds.maxY - geoBounds.minY;
+
+  const scaleX = (width - 2 * padding) / geoWidth;
+  const scaleY = (height - 2 * padding) / geoHeight;
+  geoScale = Math.min(scaleX, scaleY);
+
+  geoOffsetX = padding;
+  geoOffsetY = padding;
+}
+
+function projectX(lon) {
+  return (lon - geoBounds.minX) * geoScale + geoOffsetX;
+}
+function projectY(lat) {
+  return (geoBounds.maxY - lat) * geoScale + geoOffsetY + verticalOffset;
+}
+
+function pickNewTarget() {
+  if (cities.length === 0) return;
+  const idx = Math.floor(Math.random() * cities.length);
+  targetCity = cities[idx];
+}
+
+function drawProgressBar(current, total) {
+  uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+
+  const maxBarWidth = Math.min(uiCanvas.width * 0.5, 600);
+  const barHeight = 20;
+  const marginTop = uiCanvas.height * 0.8;  // 20% of canvas height
+  const textOffset = 8;
+
+  const centerX = uiCanvas.width / 2;
+  const x = centerX - maxBarWidth / 2;
+  const y = marginTop;
+
+  const fillRatio = Math.min(current / total, 1);
+  const fillWidth = maxBarWidth * fillRatio;
+
+  // Bar background
+  uiCtx.fillStyle = '#444';
+  uiCtx.fillRect(x, y, maxBarWidth, barHeight);
+
+  // Filled portion
+  uiCtx.fillStyle = '#4caf50';
+  uiCtx.fillRect(x, y, fillWidth, barHeight);
+
+  // Labels
+  uiCtx.fillStyle = 'white';
+  uiCtx.font = '14px Helvetica, sans-serif';
+  uiCtx.textAlign = 'center';
+
+  // Centered label above start
+  uiCtx.textAlign = 'right';
+  uiCtx.fillText(`${current.toLocaleString()} turismos`, x - textOffset, y - 6);
+
+  // Centered label above end
+  uiCtx.textAlign = 'left';
+  uiCtx.fillText(`${total.toLocaleString()} turismos`, x + maxBarWidth + textOffset, y - 6);
+}
+
+function drawCityLabel(ctx, text, x, y, secondaryText = '') {
+  ctx.font = '14px Helvetica, sans-serif';
+  const padding = 6;
+
+  const textWidth = ctx.measureText(text).width;
+  const secondWidth = ctx.measureText(secondaryText).width;
+  const width = Math.max(textWidth, secondWidth) + padding * 2;
+  const height = secondaryText ? 38 : 22;
+
+  // Background box
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillRect(x, y, width, height);
+
+  // Text
+  ctx.fillStyle = 'black';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x + padding, y + 4);
+  if (secondaryText) {
+    ctx.fillText(secondaryText, x + padding, y + 20);
+  }
+}
+
+
+
+function gameLoop() {
+  requestAnimationFrame(gameLoop);
+  if (++frameCount % blinkInterval === 0) blink = !blink;
+  if (frameCount % gameSpeed !== 0) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#d3d3d3';
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 0.5;
+  municipios.forEach(geom => drawGeoJSONPolygon(geom));
+
+  if (targetCity) {
+    targetCity.x = projectX(targetCity.lon);
+    targetCity.y = projectY(targetCity.lat);
+  }
+
+  snake.x += snake.dx;
+  snake.y += snake.dy;
+  if (snake.x < 0) snake.x = canvas.width - gridSize;
+  else if (snake.x >= canvas.width) snake.x = 0;
+  if (snake.y < 0) snake.y = canvas.height - gridSize;
+  else if (snake.y >= canvas.height) snake.y = 0;
+
+  snake.cells.unshift({x: snake.x, y: snake.y});
+  if (snake.cells.length > snake.maxCells) snake.cells.pop();
+
+  if (targetCity && blink && carImage.complete) {
+  const minSize = 24;
+  const maxSize = 64;
+
+  // Normalize vehicle count between a chosen min and max
+  const ratio = Math.min(targetCity.vehiculos / 100000, 1); // Adjust 100000 to fit your data
+  const iconSize = minSize + (maxSize - minSize) * ratio;
+
+  ctx.drawImage(
+    carImage,
+    targetCity.x - iconSize / 2,
+    targetCity.y - iconSize / 2,
+    iconSize,
+    iconSize
+  );
+}
+
+
+if (targetCity) {
+  drawCityLabel(ctx, targetCity.etiqueta, targetCity.x + 20, targetCity.y - 8, `${targetCity.vehiculos.toLocaleString()} turismos`);
+}
+
+  snake.cells.forEach((cell, index) => {
+    if (carImage.complete) {
+      ctx.drawImage(carImage, cell.x, cell.y, gridSize, gridSize);
+    } else {
+      ctx.fillStyle = 'lime';
+      ctx.fillRect(cell.x, cell.y, gridSize - 1, gridSize - 1);
+    }
+
+    if (targetCity && Math.abs(cell.x - targetCity.x) < gridSize && Math.abs(cell.y - targetCity.y) < gridSize) {
+      snake.maxCells++;
+      score += targetCity.vehiculos;
+      cities = cities.filter(c => c !== targetCity);
+      pickNewTarget();
+    }
+
+    for (let i = index + 1; i < snake.cells.length; i++) {
+      if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
+        snake = { x: 300, y: 300, dx: gridSize, dy: 0, cells: [], maxCells: 4 };
+        score = 0;
+        pickNewTarget();
+      }
+    }
+  });
+
+  drawProgressBar(score, totalCars);
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.which === 37 && snake.dx === 0) {
+    snake.dx = -gridSize; snake.dy = 0;
+  } else if (e.which === 38 && snake.dy === 0) {
+    snake.dy = -gridSize; snake.dx = 0;
+  } else if (e.which === 39 && snake.dx === 0) {
+    snake.dx = gridSize; snake.dy = 0;
+  } else if (e.which === 40 && snake.dy === 0) {
+    snake.dy = gridSize; snake.dx = 0;
+  }
+});
+
+function drawGeoJSONPolygon(geometry) {
+  if (geometry.type === 'Polygon') {
+    geometry.coordinates.forEach(ring => {
+      ctx.beginPath();
+      ring.forEach(([lon, lat], i) => {
+        const x = projectX(lon);
+        const y = projectY(lat);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    });
+  } else if (geometry.type === 'MultiPolygon') {
+    geometry.coordinates.forEach(polygon => {
+      polygon.forEach(ring => {
+        ctx.beginPath();
+        ring.forEach(([lon, lat], i) => {
+          const x = projectX(lon);
+          const y = projectY(lat);
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      });
+    });
+  }
+}
+</script>
+</body>
+</html>
