@@ -66,8 +66,8 @@ const blinkInterval = 30;
 const gameSpeed = 5;
 
 Promise.all([
-  fetch('municipios.geojson').then(res => res.json()),
-  fetch('vehiculos-total.geojson').then(res => res.json())
+  fetch('./municipios.geojson').then(res => res.json()),
+  fetch('./vehiculos-total.geojson').then(res => res.json())
 ]).then(([muniData, cityData]) => {
   computeGeoBounds(muniData);
   setGeoProjection(canvas.width, canvas.height);
