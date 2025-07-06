@@ -8,17 +8,26 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background-color: #2c435a;
+      background-color: #4165ad;
     }
     canvas {
       position: absolute;
       width: 100%;
+    }
+    #logo {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 10;
+      height: 80px;
     }
   </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <canvas id="uiCanvas"></canvas>
+<img id="logo" src="PDL-white-14.png" alt="Playable Data Lab logo">
+
 
 <script>
 const canvas = document.getElementById('gameCanvas');
@@ -147,11 +156,11 @@ function drawProgressBar(current, total) {
   const fillWidth = maxBarWidth * fillRatio;
 
   // Bar background
-  uiCtx.fillStyle = '#444';
+  uiCtx.fillStyle = '#8bc9ae';
   uiCtx.fillRect(x, y, maxBarWidth, barHeight);
 
   // Filled portion
-  uiCtx.fillStyle = '#4caf50';
+  uiCtx.fillStyle = '#ed6b62';
   uiCtx.fillRect(x, y, fillWidth, barHeight);
 
   // Labels
@@ -199,8 +208,8 @@ function gameLoop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = '#d3d3d3';
-  ctx.strokeStyle = 'white';
+  ctx.fillStyle = '#f4f5f9';
+  ctx.strokeStyle = 'black';
   ctx.lineWidth = 0.5;
   municipios.forEach(geom => drawGeoJSONPolygon(geom));
 
