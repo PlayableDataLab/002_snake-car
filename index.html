@@ -19,7 +19,29 @@
       bottom: 10px;
       right: 10px;
       z-index: 10;
-      height: 80px;
+      height: 40px;
+    }
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      text-align: center;
+    }
+    #controls .row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    #controls button {
+      font-size: 24px;
+      padding: 10px 20px;
+      margin: 5px;
+      background-color: #eee;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     }
   </style>
 </head>
@@ -28,14 +50,21 @@
 <canvas id="uiCanvas"></canvas>
 <img id="logo" src="PDL-white-14.png" alt="Playable Data Lab logo">
 
+<div id="controls">
+  <button onclick="setDirection(0, -1)">↑</button>
+  <div class="row">
+    <button onclick="setDirection(-1, 0)">←</button>
+    <button onclick="setDirection(1, 0)">→</button>
+  </div>
+  <button onclick="setDirection(0, 1)">↓</button>
+</div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
-const verticalOffset = 40; // You can adjust this number (e.g. 50, 60, etc.)
-
+const verticalOffset = 40;
 
 const uiCanvas = document.getElementById('uiCanvas');
 const uiCtx = uiCanvas.getContext('2d');
@@ -61,14 +90,27 @@ let snake = {
 };
 
 let geoBounds = {
-  minX: Infinity, minY: Infinity,
-  maxX: -Infinity, maxY: -Infinity
+  minX: Infinity,
+  minY: Infinity,
+  maxX: -Infinity,
+  maxY: -Infinity
 };
-let geoScale = 1, geoOffsetX = 0, geoOffsetY = 0;
+let geoScale = 1;
+let geoOffsetX = 0;
+let geoOffsetY = 0;
+
+function setDirection(dx, dy) {
+  if (dx !== 0 && snake.dx === 0) {
+    snake.dx = dx * gridSize;
+    snake.dy = 0;
+  } else if (dy !== 0 && snake.dy === 0) {
+    snake.dy = dy * gridSize;
+    snake.dx = 0;
+  }
+}
 
 const carImage = new Image();
 carImage.src = 'car.png';
-
 let frameCount = 0;
 let blink = true;
 const blinkInterval = 30;
@@ -118,11 +160,9 @@ function setGeoProjection(width, height) {
   const padding = 50;
   const geoWidth = geoBounds.maxX - geoBounds.minX;
   const geoHeight = geoBounds.maxY - geoBounds.minY;
-
   const scaleX = (width - 2 * padding) / geoWidth;
   const scaleY = (height - 2 * padding) / geoHeight;
   geoScale = Math.min(scaleX, scaleY);
-
   geoOffsetX = padding;
   geoOffsetY = padding;
 }
@@ -142,37 +182,23 @@ function pickNewTarget() {
 
 function drawProgressBar(current, total) {
   uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
-
   const maxBarWidth = Math.min(uiCanvas.width * 0.5, 600);
   const barHeight = 20;
-  const marginTop = uiCanvas.height * 0.8;  // 20% of canvas height
+  const marginTop = uiCanvas.height * 0.8;
   const textOffset = 8;
-
   const centerX = uiCanvas.width / 2;
   const x = centerX - maxBarWidth / 2;
   const y = marginTop;
-
   const fillRatio = Math.min(current / total, 1);
   const fillWidth = maxBarWidth * fillRatio;
-
-  // Bar background
   uiCtx.fillStyle = '#8bc9ae';
   uiCtx.fillRect(x, y, maxBarWidth, barHeight);
-
-  // Filled portion
   uiCtx.fillStyle = '#ed6b62';
   uiCtx.fillRect(x, y, fillWidth, barHeight);
-
-  // Labels
   uiCtx.fillStyle = 'white';
   uiCtx.font = '14px Helvetica, sans-serif';
-  uiCtx.textAlign = 'center';
-
-  // Centered label above start
   uiCtx.textAlign = 'right';
   uiCtx.fillText(`${current.toLocaleString()} turismos`, x - textOffset, y - 6);
-
-  // Centered label above end
   uiCtx.textAlign = 'left';
   uiCtx.fillText(`${total.toLocaleString()} turismos`, x + maxBarWidth + textOffset, y - 6);
 }
@@ -180,17 +206,12 @@ function drawProgressBar(current, total) {
 function drawCityLabel(ctx, text, x, y, secondaryText = '') {
   ctx.font = '14px Helvetica, sans-serif';
   const padding = 6;
-
   const textWidth = ctx.measureText(text).width;
   const secondWidth = ctx.measureText(secondaryText).width;
   const width = Math.max(textWidth, secondWidth) + padding * 2;
   const height = secondaryText ? 38 : 22;
-
-  // Background box
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
   ctx.fillRect(x, y, width, height);
-
-  // Text
   ctx.fillStyle = 'black';
   ctx.textBaseline = 'top';
   ctx.fillText(text, x + padding, y + 4);
@@ -199,15 +220,11 @@ function drawCityLabel(ctx, text, x, y, secondaryText = '') {
   }
 }
 
-
-
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   if (++frameCount % blinkInterval === 0) blink = !blink;
   if (frameCount % gameSpeed !== 0) return;
-
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   ctx.fillStyle = '#f4f5f9';
   ctx.strokeStyle = 'black';
   ctx.lineWidth = 0.5;
@@ -229,26 +246,16 @@ function gameLoop() {
   if (snake.cells.length > snake.maxCells) snake.cells.pop();
 
   if (targetCity && blink && carImage.complete) {
-  const minSize = 24;
-  const maxSize = 64;
+    const minSize = 24;
+    const maxSize = 64;
+    const ratio = Math.min(targetCity.vehiculos / 100000, 1);
+    const iconSize = minSize + (maxSize - minSize) * ratio;
+    ctx.drawImage(carImage, targetCity.x - iconSize / 2, targetCity.y - iconSize / 2, iconSize, iconSize);
+  }
 
-  // Normalize vehicle count between a chosen min and max
-  const ratio = Math.min(targetCity.vehiculos / 100000, 1); // Adjust 100000 to fit your data
-  const iconSize = minSize + (maxSize - minSize) * ratio;
-
-  ctx.drawImage(
-    carImage,
-    targetCity.x - iconSize / 2,
-    targetCity.y - iconSize / 2,
-    iconSize,
-    iconSize
-  );
-}
-
-
-if (targetCity) {
-  drawCityLabel(ctx, targetCity.etiqueta, targetCity.x + 20, targetCity.y - 8, `${targetCity.vehiculos.toLocaleString()} turismos`);
-}
+  if (targetCity) {
+    drawCityLabel(ctx, targetCity.etiqueta, targetCity.x + 20, targetCity.y - 8, `${targetCity.vehiculos.toLocaleString()} turismos`);
+  }
 
   snake.cells.forEach((cell, index) => {
     if (carImage.complete) {
