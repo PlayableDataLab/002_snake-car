@@ -331,6 +331,28 @@ function drawGeoJSONPolygon(geometry) {
     });
   }
 }
+// Touch-based directional control for mobile usability
+canvas.addEventListener('touchstart', function(e) {
+  if (!e.touches.length) return;
+  const touch = e.touches[0];
+  const x = touch.clientX;
+  const y = touch.clientY;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const horizontalMargin = w * 0.33;
+  const verticalMargin = h * 0.33;
+
+  if (x < horizontalMargin && Math.abs(y - h / 2) < verticalMargin) {
+    setDirection(-1, 0); // Left
+  } else if (x > w - horizontalMargin && Math.abs(y - h / 2) < verticalMargin) {
+    setDirection(1, 0); // Right
+  } else if (y < verticalMargin) {
+    setDirection(0, -1); // Up
+  } else if (y > h - verticalMargin) {
+    setDirection(0, 1); // Down
+  }
+}, false);
+
 </script>
 </body>
 </html>
