@@ -21,50 +21,15 @@
       z-index: 10;
       height: 40px;
     }
-    #controls {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
-      text-align: center;
+    .controls {
+      display: none;
     }
-    #controls .row {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-    }
-    #controls button {
-  font-size: 28px;
-  padding: 14px 24px;
-  margin: 5px;
-  background-color: #ffffffcc;
-  border: 2px solid #4165ad;
-  border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  transition: background-color 0.2s, transform 0.2s;
-}
-
-#controls button:hover {
-  background-color: #f0f0f0;
-  transform: scale(1.05);
-}
   </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <canvas id="uiCanvas"></canvas>
 <img id="logo" src="PDL-white-14.png" alt="Playable Data Lab logo">
-
-<div id="controls">
-  <button onclick="setDirection(0, -1)">↑</button>
-  <div class="row">
-    <button onclick="setDirection(-1, 0)">←</button>
-    <button onclick="setDirection(1, 0)">→</button>
-  </div>
-  <button onclick="setDirection(0, 1)">↓</button>
-</div>
-
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -235,22 +200,18 @@ function gameLoop() {
   ctx.strokeStyle = 'black';
   ctx.lineWidth = 0.5;
   municipios.forEach(geom => drawGeoJSONPolygon(geom));
-
   if (targetCity) {
     targetCity.x = projectX(targetCity.lon);
     targetCity.y = projectY(targetCity.lat);
   }
-
   snake.x += snake.dx;
   snake.y += snake.dy;
   if (snake.x < 0) snake.x = canvas.width - gridSize;
   else if (snake.x >= canvas.width) snake.x = 0;
   if (snake.y < 0) snake.y = canvas.height - gridSize;
   else if (snake.y >= canvas.height) snake.y = 0;
-
   snake.cells.unshift({x: snake.x, y: snake.y});
   if (snake.cells.length > snake.maxCells) snake.cells.pop();
-
   if (targetCity && blink && carImage.complete) {
     const minSize = 24;
     const maxSize = 64;
@@ -258,11 +219,9 @@ function gameLoop() {
     const iconSize = minSize + (maxSize - minSize) * ratio;
     ctx.drawImage(carImage, targetCity.x - iconSize / 2, targetCity.y - iconSize / 2, iconSize, iconSize);
   }
-
   if (targetCity) {
     drawCityLabel(ctx, targetCity.etiqueta, targetCity.x + 20, targetCity.y - 8, `${targetCity.vehiculos.toLocaleString()} turismos`);
   }
-
   snake.cells.forEach((cell, index) => {
     if (carImage.complete) {
       ctx.drawImage(carImage, cell.x, cell.y, gridSize, gridSize);
@@ -270,14 +229,12 @@ function gameLoop() {
       ctx.fillStyle = 'lime';
       ctx.fillRect(cell.x, cell.y, gridSize - 1, gridSize - 1);
     }
-
     if (targetCity && Math.abs(cell.x - targetCity.x) < gridSize && Math.abs(cell.y - targetCity.y) < gridSize) {
       snake.maxCells++;
       score += targetCity.vehiculos;
       cities = cities.filter(c => c !== targetCity);
       pickNewTarget();
     }
-
     for (let i = index + 1; i < snake.cells.length; i++) {
       if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
         snake = { x: 300, y: 300, dx: gridSize, dy: 0, cells: [], maxCells: 4 };
@@ -286,7 +243,6 @@ function gameLoop() {
       }
     }
   });
-
   drawProgressBar(score, totalCars);
 }
 
@@ -331,7 +287,7 @@ function drawGeoJSONPolygon(geometry) {
     });
   }
 }
-// Touch-based directional control for mobile usability
+
 canvas.addEventListener('touchstart', function(e) {
   if (!e.touches.length) return;
   const touch = e.touches[0];
@@ -341,18 +297,16 @@ canvas.addEventListener('touchstart', function(e) {
   const h = window.innerHeight;
   const horizontalMargin = w * 0.33;
   const verticalMargin = h * 0.33;
-
   if (x < horizontalMargin && Math.abs(y - h / 2) < verticalMargin) {
-    setDirection(-1, 0); // Left
+    setDirection(-1, 0);
   } else if (x > w - horizontalMargin && Math.abs(y - h / 2) < verticalMargin) {
-    setDirection(1, 0); // Right
+    setDirection(1, 0);
   } else if (y < verticalMargin) {
-    setDirection(0, -1); // Up
+    setDirection(0, -1);
   } else if (y > h - verticalMargin) {
-    setDirection(0, 1); // Down
+    setDirection(0, 1);
   }
 }, false);
-
 </script>
 </body>
 </html>
