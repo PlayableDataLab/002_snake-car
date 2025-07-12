@@ -35,14 +35,20 @@
       gap: 10px;
     }
     #controls button {
-      font-size: 24px;
-      padding: 10px 20px;
-      margin: 5px;
-      background-color: #eee;
-      border: none;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-    }
+  font-size: 28px;
+  padding: 14px 24px;
+  margin: 5px;
+  background-color: #ffffffcc;
+  border: 2px solid #4165ad;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+#controls button:hover {
+  background-color: #f0f0f0;
+  transform: scale(1.05);
+}
   </style>
 </head>
 <body>
@@ -114,7 +120,7 @@ carImage.src = 'car.png';
 let frameCount = 0;
 let blink = true;
 const blinkInterval = 30;
-const gameSpeed = 5;
+const gameSpeed = 8;
 
 Promise.all([
   fetch('./municipios.geojson').then(res => res.json()),
