@@ -1,312 +1,485 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Car Snake Game with Progress Bar</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background-color: #4165ad;
-    }
-    canvas {
-      position: absolute;
-      width: 100%;
-    }
-    #logo {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      z-index: 10;
-      height: 40px;
-    }
-    .controls {
-      display: none;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PlayableDataLab · Car Snake v2.1 (Themes)</title>
+<style>
+  /* THEME VARIABLES (overwritten by JS per style) */
+  :root{
+    --bg1:#2d4e9a; --bg2:#1c2f63;
+    --cream:#f4f5f9; --ink:rgba(0,0,0,.55);
+    --accent:#ed6b62; --accent-2:#8bc9ae;
+    --hud:rgba(18,18,18,.60); --grid:rgba(255,255,255,.08);
+    --border:#00000088; --labelBg:rgba(255,255,255,.86); --labelTxt:#111;
+  }
+  html,body{margin:0;height:100%;
+    background:radial-gradient(1200px 800px at 50% 20%,var(--bg1),var(--bg2));
+    overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+  canvas{position:absolute;inset:0;}
+  #fx{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;mix-blend-mode:normal;}
+  #logo{position:absolute;right:14px;bottom:12px;height:40px;z-index:10;}
+  /* HUD */
+  #hud{position:absolute;left:0;top:0;right:0;height:72px;z-index:9;pointer-events:none;
+       display:flex;align-items:center;justify-content:center;}
+  #hud .bar{
+    background:var(--hud);backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:14px;padding:10px 14px;min-width:clamp(280px,50vw,720px);
+    color:#fff;display:flex;align-items:center;gap:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.22);
+  }
+  .meter{position:relative;flex:1;height:18px;border-radius:999px;overflow:hidden;background:var(--accent-2);}
+  .meter .fill{position:absolute;inset:0 100% 0 0;background:var(--accent);}
+  .stat{font-size:13px;opacity:.9;white-space:nowrap;}
+  .title{font-weight:600;margin-right:6px;letter-spacing:.2px;}
+  /* Overlay + picker */
+  #overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:11;
+    background:radial-gradient(1200px 800px at 50% 20%,rgba(13,19,48,.85),rgba(8,10,26,.9));
+    color:#fff;text-align:center;padding:28px;}
+  #panel{max-width:min(960px,92vw);background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12);padding:24px 24px 18px;border-radius:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+  h1{margin:.2rem 0 .6rem;font-size:clamp(28px,4vw,40px);}
+  p{margin:.2rem 0 .6rem;opacity:.9}
+  kbd{background:#111;border:1px solid rgba(255,255,255,.22);border-bottom-color:rgba(0,0,0,.6);
+      padding:2px 6px;border-radius:6px;font-size:.9em;}
+  .btn{display:inline-block;margin-top:10px;background:#fff;color:#111;font-weight:600;
+       padding:10px 14px;border-radius:12px;cursor:pointer;user-select:none;}
+  .picker{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:12px;margin:12px 0 6px;}
+  .themeCard{position:relative;border-radius:14px;padding:10px;text-align:left;background:#111;cursor:pointer;border:1px solid rgba(255,255,255,.18)}
+  .swatch{height:40px;border-radius:10px;margin-bottom:8px;border:1px solid rgba(255,255,255,.2)}
+  .themeName{font-size:12px;opacity:.9}
+  .themeCard input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .themeCard.active{outline:2px solid #fff;}
+  /* Mobile d-pad */
+  .pad{position:absolute;bottom:18px;left:18px;width:120px;height:120px;z-index:8;opacity:.7;display:none;}
+  .pad button{position:absolute;width:40px;height:40px;border-radius:10px;border:none;background:rgba(255,255,255,.9);
+    box-shadow:0 6px 18px rgba(0,0,0,.26);backdrop-filter:blur(4px);}
+  .pad .up{left:40px;top:0}.pad .down{left:40px;bottom:0}.pad .left{left:0;top:40px}.pad .right{right:0;top:40px}
+  @media (hover:none) and (pointer:coarse){.pad{display:block;}}
+</style>
 </head>
 <body>
-<canvas id="gameCanvas"></canvas>
-<canvas id="uiCanvas"></canvas>
-<img id="logo" src="PDL-white-14.png" alt="Playable Data Lab logo">
+<canvas id="game"></canvas>
+<div id="fx"></div>
+<img id="logo" src="PDL-white-14.png" alt="Playable Data Lab" />
+
+<!-- HUD -->
+<div id="hud">
+  <div class="bar">
+    <span class="title">Car Snake · v2.1</span>
+    <div class="meter"><div class="fill" id="meterFill"></div></div>
+    <span class="stat" id="scoreStat">0</span>
+    <span class="stat">/</span>
+    <span class="stat" id="totalStat">0</span>
+    <span class="stat" id="extra">Cities: 0 · Best: 0</span>
+  </div>
+</div>
+
+<!-- Overlay with Style Picker -->
+<div id="overlay" role="dialog" aria-modal="true">
+  <div id="panel">
+    <h1>Choose your style</h1>
+    <p>Same game, different looks. Pick a theme and hit Start. Controls:
+      <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> / <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ·
+      <kbd>P</kbd> Pause · <kbd>R</kbd> Restart · <kbd>M</kbd> Mute</p>
+
+    <div class="picker" id="themeList"></div>
+    <div class="btn" id="startBtn">Start game</div>
+  </div>
+</div>
+
+<!-- Mobile d-pad -->
+<div class="pad" aria-hidden="true">
+  <button class="up">▲</button><button class="down">▼</button>
+  <button class="left">◀</button><button class="right">▶</button>
+</div>
+
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-const verticalOffset = 40;
+/* ========= Theme system ========= */
+const root = document.documentElement;
+const fx = document.getElementById('fx');
 
-const uiCanvas = document.getElementById('uiCanvas');
-const uiCtx = uiCanvas.getContext('2d');
-uiCanvas.width = canvas.width;
-uiCanvas.height = 60;
-uiCanvas.style.top = '0px';
-uiCanvas.style.position = 'absolute';
-
-let gridSize = 32;
-let municipios = [];
-let cities = [];
-let targetCity = null;
-let score = 0;
-let totalCars = 0;
-
-let snake = {
-  x: 300,
-  y: 300,
-  dx: gridSize,
-  dy: 0,
-  cells: [],
-  maxCells: 4
-};
-
-let geoBounds = {
-  minX: Infinity,
-  minY: Infinity,
-  maxX: -Infinity,
-  maxY: -Infinity
-};
-let geoScale = 1;
-let geoOffsetX = 0;
-let geoOffsetY = 0;
-
-function setDirection(dx, dy) {
-  if (dx !== 0 && snake.dx === 0) {
-    snake.dx = dx * gridSize;
-    snake.dy = 0;
-  } else if (dy !== 0 && snake.dy === 0) {
-    snake.dy = dy * gridSize;
-    snake.dx = 0;
+const THEMES = {
+  classic:{
+    name:'Classic',
+    swatch:'linear-gradient(135deg,#2d4e9a,#1c2f63)',
+    vars:{'--bg1':'#2d4e9a','--bg2':'#1c2f63','--cream':'#f4f5f9','--hud':'rgba(18,18,18,.6)',
+          '--accent':'#ed6b62','--accent-2':'#8bc9ae','--grid':'rgba(255,255,255,.08)',
+          '--border':'#00000080','--labelBg':'rgba(255,255,255,.86)','--labelTxt':'#111'},
+    fx:{scanlines:false,vignette:false},
+    draw:{borderW:.8,gridCustom:null,carFilter:'none'}
+  },
+  retro:{
+    name:'Retro Mono',
+    swatch:'linear-gradient(135deg,#0b0b0b,#1a1a1a)',
+    vars:{'--bg1':'#0e0f12','--bg2':'#0a0b0d','--cream':'#e9e9e9','--hud':'rgba(0,0,0,.65)',
+          '--accent':'#ffffff','--accent-2':'#bdbdbd','--grid':'rgba(255,255,255,.10)',
+          '--border':'#000000aa','--labelBg':'#111','--labelTxt':'#fff'},
+    fx:{scanlines:true,vignette:true},
+    draw:{borderW:1.0,gridCustom:'rgba(255,255,255,.10)',carFilter:'grayscale(1) contrast(1.1)'}
+  },
+  neon:{
+    name:'Neon Grid',
+    swatch:'linear-gradient(135deg,#0b0c27,#1f1b57)',
+    vars:{'--bg1':'#0b0c27','--bg2':'#1f1b57','--cream':'#0f102b','--hud':'rgba(8,8,24,.62)',
+          '--accent':'#24ffd3','--accent-2':'#6a42ff','--grid':'rgba(36,255,211,.18)',
+          '--border':'#24ffd366','--labelBg':'rgba(12,12,28,.90)','--labelTxt':'#eafffb'},
+    fx:{scanlines:false,vignette:true},
+    draw:{borderW:1.1,gridCustom:'rgba(36,255,211,.18)',carFilter:'hue-rotate(50deg) saturate(1.7)'}
+  },
+  gold:{
+    name:'Gold Noir',
+    swatch:'linear-gradient(135deg,#0a0a0a,#1a1a1a)',
+    vars:{'--bg1':'#0a0a0a','--bg2':'#1a1a1a','--cream':'#181610','--hud':'rgba(12,12,12,.65)',
+          '--accent':'#d4af37','--accent-2':'#3a3322','--grid':'rgba(212,175,55,.12)',
+          '--border':'#d4af3770','--labelBg':'rgba(28,24,18,.92)','--labelTxt':'#f6e6b3'},
+    fx:{scanlines:false,vignette:true},
+    draw:{borderW:1.0,gridCustom:'rgba(212,175,55,.12)',carFilter:'sepia(.6) contrast(1.2)'}
+  },
+  pastel:{
+    name:'Pastel Day',
+    swatch:'linear-gradient(135deg,#e8f2ff,#f9e9ff)',
+    vars:{'--bg1':'#e8f2ff','--bg2':'#f2e9ff','--cream':'#ffffff','--hud':'rgba(255,255,255,.75)',
+          '--accent':'#ff8aa5','--accent-2':'#bfeadf','--grid':'rgba(0,0,0,.06)',
+          '--border':'#00000033','--labelBg':'rgba(255,255,255,.96)','--labelTxt':'#222'},
+    fx:{scanlines:false,vignette:false},
+    draw:{borderW:.8,gridCustom:'rgba(0,0,0,.06)',carFilter:'saturate(1.1) brightness(1.05)'}
   }
+};
+
+let themeKey = localStorage.getItem('pdl_snake_theme') || 'classic';
+let theme = THEMES[themeKey];
+
+function applyTheme(key){
+  themeKey = key; theme = THEMES[key];
+  // CSS vars
+  Object.entries(theme.vars).forEach(([k,v]) => root.style.setProperty(k, v));
+  // FX overlay
+  const scans = 'repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 2px, rgba(255,255,255,0.04) 2px 3px)';
+  const vign  = 'radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.3) 80%)';
+  const imgs=[];
+  if (theme.fx.scanlines) imgs.push(scans);
+  if (theme.fx.vignette)  imgs.push(vign);
+  fx.style.backgroundImage = imgs.join(',');
+  fx.style.opacity = imgs.length ? 1 : 0;
+  localStorage.setItem('pdl_snake_theme', key);
 }
 
-const carImage = new Image();
-carImage.src = 'car.png';
-let frameCount = 0;
-let blink = true;
-const blinkInterval = 30;
-const gameSpeed = 8;
-
-Promise.all([
-  fetch('./municipios.geojson').then(res => res.json()),
-  fetch('./vehiculos-total.geojson').then(res => res.json())
-]).then(([muniData, cityData]) => {
-  computeGeoBounds(muniData);
-  setGeoProjection(canvas.width, canvas.height);
-  municipios = muniData.features.map(f => f.geometry);
-
-  cities = cityData.features.map(f => {
-    const [lon, lat] = f.geometry.coordinates;
-    const vehiculos = parseInt(f.properties['Total-vehiculos']) || 0;
-    totalCars += vehiculos;
-    return {
-      etiqueta: f.properties.ETIQUETA || "Ciudad",
-      lon,
-      lat,
-      x: projectX(lon),
-      y: projectY(lat),
-      vehiculos
-    };
+function makeThemePicker(){
+  const list = document.getElementById('themeList');
+  Object.entries(THEMES).forEach(([key,def])=>{
+    const card = document.createElement('label');
+    card.className = 'themeCard' + (key===themeKey?' active':'');
+    card.style.background = 'linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02))';
+    card.innerHTML = `
+      <div class="swatch" style="background:${def.swatch}"></div>
+      <div class="themeName">${def.name}</div>
+      <input type="radio" name="theme" ${key===themeKey?'checked':''} />
+    `;
+    card.addEventListener('click', ()=>{
+      document.querySelectorAll('.themeCard').forEach(el=>el.classList.remove('active'));
+      card.classList.add('active');
+      applyTheme(key);
+    });
+    list.appendChild(card);
   });
+}
 
-  pickNewTarget();
-  requestAnimationFrame(gameLoop);
-});
+/* ========= Canvas + DPR ========= */
+const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d', { alpha: false });
 
-function computeGeoBounds(geojson) {
-  geojson.features.forEach(f => {
-    const coords = f.geometry.type === "Polygon"
-      ? f.geometry.coordinates.flat(1)
-      : f.geometry.coordinates.flat(2);
-    coords.forEach(([lon, lat]) => {
-      geoBounds.minX = Math.min(geoBounds.minX, lon);
-      geoBounds.maxX = Math.max(geoBounds.maxX, lon);
-      geoBounds.minY = Math.min(geoBounds.minY, lat);
-      geoBounds.maxY = Math.max(geoBounds.maxY, lat);
+function sizeCanvas(){
+  canvas.style.width  = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  canvas.width  = Math.floor(window.innerWidth  * DPR);
+  canvas.height = Math.floor(window.innerHeight * DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+sizeCanvas();
+window.addEventListener('resize', () => { sizeCanvas(); projectAll(); });
+
+/* ========= UI ========= */
+const overlay = document.getElementById('overlay');
+document.getElementById('startBtn').onclick = () => { overlay.style.display = 'none'; resume(); };
+const meterFill = document.getElementById('meterFill');
+const scoreStat = document.getElementById('scoreStat');
+const totalStat = document.getElementById('totalStat');
+const extraStat = document.getElementById('extra');
+
+/* ========= Assets ========= */
+const carImg = new Image(); carImg.src = 'car.png';
+
+/* ========= Game state ========= */
+const HUD_H = 72, GRID = 32, STEP_BASE = 120, SPEEDUP_MS = 3;
+let stepMs = STEP_BASE, acc = 0, last = 0, paused = true;
+let bestScore = +localStorage.getItem('pdl_snake_best') || 0;
+
+let municipios = [], muniPaths = [], cities = [], totalCars = 0;
+let target = null; let particles = []; let shakeT = 0;
+
+const snake = { x:300, y:300, dx:GRID, dy:0, cells:[], max:4, eaten:0 };
+
+/* ========= Projection ========= */
+const bounds = { minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity };
+let scale = 1, offX = 0, offY = 0;
+
+function computeBounds(geojson){
+  geojson.features.forEach(f=>{
+    const g=f.geometry;
+    const coords=(g.type==='Polygon')?g.coordinates.flat(1):g.coordinates.flat(2);
+    coords.forEach(([lon,lat])=>{
+      bounds.minX=Math.min(bounds.minX,lon); bounds.maxX=Math.max(bounds.maxX,lon);
+      bounds.minY=Math.min(bounds.minY,lat); bounds.maxY=Math.max(bounds.maxY,lat);
     });
   });
 }
+function setProjection(){
+  const pad=36, w=canvas.clientWidth, h=canvas.clientHeight-HUD_H-6;
+  const gw=bounds.maxX-bounds.minX, gh=bounds.maxY-bounds.minY;
+  const sx=(w-2*pad)/gw, sy=(h-2*pad)/gh;
+  scale=Math.min(sx,sy); offX=pad; offY=pad+HUD_H;
+}
+function projX(lon){ return (lon-bounds.minX)*scale+offX; }
+function projY(lat){ return (bounds.maxY-lat)*scale+offY; }
+function projectAll(){
+  if (!municipios.length) return;
+  setProjection();
+  muniPaths=[];
+  municipios.forEach(geom=>{
+    const ringToPath = (ring)=>{
+      const p=new Path2D();
+      ring.forEach(([lon,lat],i)=>{ const x=projX(lon), y=projY(lat); i?p.lineTo(x,y):p.moveTo(x,y); });
+      p.closePath(); muniPaths.push(p);
+    };
+    if (geom.type==='Polygon') geom.coordinates.forEach(ringToPath);
+    else if (geom.type==='MultiPolygon') geom.coordinates.forEach(poly=>poly.forEach(ringToPath));
+  });
+  cities.forEach(c=>{ c.x=projX(c.lon); c.y=projY(c.lat); });
+}
+function pickTarget(){ target = cities.length ? cities[Math.floor(Math.random()*cities.length)] : null; }
 
-function setGeoProjection(width, height) {
-  const padding = 50;
-  const geoWidth = geoBounds.maxX - geoBounds.minX;
-  const geoHeight = geoBounds.maxY - geoBounds.minY;
-  const scaleX = (width - 2 * padding) / geoWidth;
-  const scaleY = (height - 2 * padding) / geoHeight;
-  geoScale = Math.min(scaleX, scaleY);
-  geoOffsetX = padding;
-  geoOffsetY = padding;
+/* ========= Audio ========= */
+let muted=false; let audioCtx;
+function tone(freq=440,dur=0.08,type='sine',vol=0.2){
+  if (muted) return;
+  try{
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    const t=audioCtx.currentTime, o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,t);
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t+dur);
+  }catch(e){}
 }
 
-function projectX(lon) {
-  return (lon - geoBounds.minX) * geoScale + geoOffsetX;
-}
-function projectY(lat) {
-  return (geoBounds.maxY - lat) * geoScale + geoOffsetY + verticalOffset;
-}
-
-function pickNewTarget() {
-  if (cities.length === 0) return;
-  const idx = Math.floor(Math.random() * cities.length);
-  targetCity = cities[idx];
-}
-
-function drawProgressBar(current, total) {
-  uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
-  const maxBarWidth = Math.min(uiCanvas.width * 0.5, 600);
-  const barHeight = 20;
-  const marginTop = uiCanvas.height * 0.8;
-  const textOffset = 8;
-  const centerX = uiCanvas.width / 2;
-  const x = centerX - maxBarWidth / 2;
-  const y = marginTop;
-  const fillRatio = Math.min(current / total, 1);
-  const fillWidth = maxBarWidth * fillRatio;
-  uiCtx.fillStyle = '#8bc9ae';
-  uiCtx.fillRect(x, y, maxBarWidth, barHeight);
-  uiCtx.fillStyle = '#ed6b62';
-  uiCtx.fillRect(x, y, fillWidth, barHeight);
-  uiCtx.fillStyle = 'white';
-  uiCtx.font = '14px Helvetica, sans-serif';
-  uiCtx.textAlign = 'right';
-  uiCtx.fillText(`${current.toLocaleString()} turismos`, x - textOffset, y - 6);
-  uiCtx.textAlign = 'left';
-  uiCtx.fillText(`${total.toLocaleString()} turismos`, x + maxBarWidth + textOffset, y - 6);
-}
-
-function drawCityLabel(ctx, text, x, y, secondaryText = '') {
-  ctx.font = '14px Helvetica, sans-serif';
-  const padding = 6;
-  const textWidth = ctx.measureText(text).width;
-  const secondWidth = ctx.measureText(secondaryText).width;
-  const width = Math.max(textWidth, secondWidth) + padding * 2;
-  const height = secondaryText ? 38 : 22;
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillRect(x, y, width, height);
-  ctx.fillStyle = 'black';
-  ctx.textBaseline = 'top';
-  ctx.fillText(text, x + padding, y + 4);
-  if (secondaryText) {
-    ctx.fillText(secondaryText, x + padding, y + 20);
+/* ========= Particles ========= */
+function spawnConfetti(x,y,n=24){
+  for (let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, v=2+Math.random()*4;
+    particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.7+Math.random()*.6});
   }
 }
 
-function gameLoop() {
-  requestAnimationFrame(gameLoop);
-  if (++frameCount % blinkInterval === 0) blink = !blink;
-  if (frameCount % gameSpeed !== 0) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#f4f5f9';
-  ctx.strokeStyle = 'black';
-  ctx.lineWidth = 0.5;
-  municipios.forEach(geom => drawGeoJSONPolygon(geom));
-  if (targetCity) {
-    targetCity.x = projectX(targetCity.lon);
-    targetCity.y = projectY(targetCity.lat);
+/* ========= Data ========= */
+Promise.all([
+  fetch('./municipios.geojson').then(r=>r.json()),
+  fetch('./vehiculos-total.geojson').then(r=>r.json())
+]).then(([muni,veh])=>{
+  computeBounds(muni);
+  municipios = muni.features.map(f=>f.geometry);
+
+  totalCars = 0;
+  cities = veh.features.map(f=>{
+    const [lon,lat] = f.geometry.coordinates;
+    const vehiculos = parseInt(f.properties['Total-vehiculos'])||0;
+    totalCars += vehiculos;
+    return { etiqueta:f.properties.ETIQUETA||'Ciudad', lon, lat, x:0, y:0, vehiculos };
+  });
+  totalStat.textContent = totalCars.toLocaleString();
+  projectAll(); pickTarget(); draw(0);
+});
+
+/* ========= Controls ========= */
+function setDir(dx,dy){ if (dx && snake.dx!==0) return; if (dy && snake.dy!==0) return;
+  snake.dx = dx*GRID; snake.dy = dy*GRID; }
+document.addEventListener('keydown', e=>{
+  const k=e.key.toLowerCase();
+  if (k==='arrowleft'||k==='a') setDir(-1,0);
+  else if (k==='arrowright'||k==='d') setDir(1,0);
+  else if (k==='arrowup'||k==='w') setDir(0,-1);
+  else if (k==='arrowdown'||k==='s') setDir(0,1);
+  else if (k==='p') togglePause();
+  else if (k==='r') restart();
+  else if (k==='m') { muted=!muted; tone(220,.05,'square',.1); }
+});
+function restart(){
+  snake.x=300; snake.y=300; snake.dx=GRID; snake.dy=0;
+  snake.cells=[]; snake.max=4; snake.eaten=0; stepMs=STEP_BASE; particles.length=0; score=0;
+  pickTarget(); tone(330,.1,'triangle',.15);
+}
+function togglePause(){ paused?resume():pause(); }
+function pause(){ paused=true; }
+function resume(){ last=performance.now(); paused=false; requestAnimationFrame(draw); }
+
+/* mobile pad */
+const pad = document.querySelector('.pad');
+pad.querySelector('.up').addEventListener('touchstart',e=>{e.preventDefault(); setDir(0,-1);});
+pad.querySelector('.down').addEventListener('touchstart',e=>{e.preventDefault(); setDir(0,1);});
+pad.querySelector('.left').addEventListener('touchstart',e=>{e.preventDefault(); setDir(-1,0);});
+pad.querySelector('.right').addEventListener('touchstart',e=>{e.preventDefault(); setDir(1,0);});
+
+/* ========= Gameplay ========= */
+let score=0;
+function eat(){
+  snake.max++; snake.eaten++; score += target.vehiculos;
+  cities = cities.filter(c=>c!==target);
+  spawnConfetti(target.x,target.y,30);
+  tone(880,.07,'square',.15);
+  stepMs = Math.max(58, STEP_BASE - snake.eaten * SPEEDUP_MS);
+  pickTarget();
+  if (score>bestScore){ bestScore=score; localStorage.setItem('pdl_snake_best',bestScore); }
+}
+function crash(){ shakeT=.25; tone(130,.14,'sawtooth',.2); restart(); }
+
+/* ========= Render helpers ========= */
+function drawMap(){
+  ctx.save();
+  ctx.fillStyle = getComputedStyle(root).getPropertyValue('--cream');
+  ctx.strokeStyle = getComputedStyle(root).getPropertyValue('--border');
+  ctx.lineWidth = theme.draw.borderW;
+  for (const p of muniPaths){ ctx.fill(p); ctx.stroke(p); }
+  ctx.restore();
+}
+function drawGrid(){
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  ctx.save();
+  ctx.strokeStyle = theme.draw.gridCustom || getComputedStyle(root).getPropertyValue('--grid'); ctx.lineWidth = 1;
+  for (let x=0;x<w;x+=GRID){ ctx.beginPath(); ctx.moveTo(x,HUD_H); ctx.lineTo(x,h); ctx.stroke();}
+  for (let y=Math.ceil(HUD_H/GRID)*GRID;y<h;y+=GRID){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  ctx.restore();
+}
+function drawCompass(){
+  if (!target) return;
+  const cx=64, cy=HUD_H/2 + 2, r=16, ang=Math.atan2((target.y)-(snake.y),(target.x)-(snake.x));
+  ctx.save(); ctx.translate(cx,cy); ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke(); ctx.rotate(ang);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(r,0); ctx.stroke(); ctx.restore();
+}
+function drawTarget(t){
+  if (!target || !carImg.complete) return;
+  const min=26,max=64, cap=Math.min(target.vehiculos/100000,1), base=min+(max-min)*cap, pulse=1+0.06*Math.sin(t*6), s=base*pulse;
+  ctx.save();
+  ctx.fillStyle='rgba(255,255,255,.22)'; ctx.beginPath(); ctx.arc(target.x,target.y,s*0.55,0,Math.PI*2); ctx.fill();
+  ctx.filter = theme.draw.carFilter; ctx.drawImage(carImg, target.x-s/2, target.y-s/2, s, s); ctx.filter='none';
+  const txt=target.etiqueta, sub=`${target.vehiculos.toLocaleString()} turismos`;
+  const labelBg=getComputedStyle(root).getPropertyValue('--labelBg'), labelTxt=getComputedStyle(root).getPropertyValue('--labelTxt');
+  ctx.font='13px system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial';
+  const w=Math.max(ctx.measureText(txt).width, ctx.measureText(sub).width)+14, h=36, x=target.x+20, y=target.y-10;
+  ctx.fillStyle=labelBg; ctx.fillRect(x,y,w,h); ctx.fillStyle=labelTxt; ctx.textBaseline='top';
+  ctx.fillText(txt,x+7,y+4); ctx.fillText(sub,x+7,y+20);
+  ctx.restore();
+}
+function drawSnake(){
+  for (let i=0;i<snake.cells.length;i++){
+    const c=snake.cells[i];
+    if (carImg.complete){ ctx.save(); ctx.filter = theme.draw.carFilter; ctx.drawImage(carImg,c.x,c.y,GRID,GRID); ctx.restore(); }
+    else { ctx.fillStyle='#9cf07a'; ctx.fillRect(c.x,c.y,GRID-1,GRID-1); }
+    for (let j=i+1;j<snake.cells.length;j++){ const o=snake.cells[j]; if (c.x===o.x && c.y===o.y){ crash(); return; } }
   }
+}
+function drawParticles(dt){
+  if (!particles.length) return;
+  ctx.save();
+  particles = particles.filter(p=> (p.life-=dt)>0);
+  ctx.fillStyle='rgba(255,255,255,.9)';
+  for (const p of particles){
+    p.x+=p.vx; p.y+=p.vy;
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.beginPath(); ctx.arc(p.x,p.y,2.6,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1; ctx.restore();
+}
+
+/* ========= Main loop ========= */
+function step(){
+  // move snake one cell
   snake.x += snake.dx;
   snake.y += snake.dy;
-  if (snake.x < 0) snake.x = canvas.width - gridSize;
-  else if (snake.x >= canvas.width) snake.x = 0;
-  if (snake.y < 0) snake.y = canvas.height - gridSize;
-  else if (snake.y >= canvas.height) snake.y = 0;
-  snake.cells.unshift({x: snake.x, y: snake.y});
-  if (snake.cells.length > snake.maxCells) snake.cells.pop();
-  if (targetCity && blink && carImage.complete) {
-    const minSize = 24;
-    const maxSize = 64;
-    const ratio = Math.min(targetCity.vehiculos / 100000, 1);
-    const iconSize = minSize + (maxSize - minSize) * ratio;
-    ctx.drawImage(carImage, targetCity.x - iconSize / 2, targetCity.y - iconSize / 2, iconSize, iconSize);
-  }
-  if (targetCity) {
-    drawCityLabel(ctx, targetCity.etiqueta, targetCity.x + 20, targetCity.y - 8, `${targetCity.vehiculos.toLocaleString()} turismos`);
-  }
-  snake.cells.forEach((cell, index) => {
-    if (carImage.complete) {
-      ctx.drawImage(carImage, cell.x, cell.y, gridSize, gridSize);
-    } else {
-      ctx.fillStyle = 'lime';
-      ctx.fillRect(cell.x, cell.y, gridSize - 1, gridSize - 1);
-    }
-    if (targetCity && Math.abs(cell.x - targetCity.x) < gridSize && Math.abs(cell.y - targetCity.y) < gridSize) {
-      snake.maxCells++;
-      score += targetCity.vehiculos;
-      cities = cities.filter(c => c !== targetCity);
-      pickNewTarget();
-    }
-    for (let i = index + 1; i < snake.cells.length; i++) {
-      if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
-        snake = { x: 300, y: 300, dx: gridSize, dy: 0, cells: [], maxCells: 4 };
-        score = 0;
-        pickNewTarget();
-      }
-    }
-  });
-  drawProgressBar(score, totalCars);
-}
 
-document.addEventListener('keydown', function(e) {
-  if (e.which === 37 && snake.dx === 0) {
-    snake.dx = -gridSize; snake.dy = 0;
-  } else if (e.which === 38 && snake.dy === 0) {
-    snake.dy = -gridSize; snake.dx = 0;
-  } else if (e.which === 39 && snake.dx === 0) {
-    snake.dx = gridSize; snake.dy = 0;
-  } else if (e.which === 40 && snake.dy === 0) {
-    snake.dy = gridSize; snake.dx = 0;
-  }
-});
+  // wrap around screen edges (respect HUD)
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (snake.x < 0) snake.x = W - GRID;
+  else if (snake.x >= W) snake.x = 0;
+  if (snake.y < HUD_H) snake.y = Math.ceil((H - GRID) / GRID) * GRID;
+  else if (snake.y >= H) snake.y = HUD_H;
 
-function drawGeoJSONPolygon(geometry) {
-  if (geometry.type === 'Polygon') {
-    geometry.coordinates.forEach(ring => {
-      ctx.beginPath();
-      ring.forEach(([lon, lat], i) => {
-        const x = projectX(lon);
-        const y = projectY(lat);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      });
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    });
-  } else if (geometry.type === 'MultiPolygon') {
-    geometry.coordinates.forEach(polygon => {
-      polygon.forEach(ring => {
-        ctx.beginPath();
-        ring.forEach(([lon, lat], i) => {
-          const x = projectX(lon);
-          const y = projectY(lat);
-          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        });
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      });
-    });
+  snake.cells.unshift({ x: snake.x, y: snake.y });
+  if (snake.cells.length > snake.max) snake.cells.pop();
+
+  // eat target?
+  if (target){
+    const hit = (snake.x <= target.x && target.x < snake.x + GRID) &&
+                (snake.y <= target.y && target.y < snake.y + GRID);
+    if (hit) eat();
   }
 }
 
-canvas.addEventListener('touchstart', function(e) {
-  if (!e.touches.length) return;
-  const touch = e.touches[0];
-  const x = touch.clientX;
-  const y = touch.clientY;
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const horizontalMargin = w * 0.33;
-  const verticalMargin = h * 0.33;
-  if (x < horizontalMargin && Math.abs(y - h / 2) < verticalMargin) {
-    setDirection(-1, 0);
-  } else if (x > w - horizontalMargin && Math.abs(y - h / 2) < verticalMargin) {
-    setDirection(1, 0);
-  } else if (y < verticalMargin) {
-    setDirection(0, -1);
-  } else if (y > h - verticalMargin) {
-    setDirection(0, 1);
+function updateHUD(){
+  scoreStat.textContent = score.toLocaleString();
+  totalStat.textContent = totalCars.toLocaleString();
+  extraStat.textContent = `Cities: ${snake.eaten} · Best: ${bestScore.toLocaleString()}`;
+  const ratio = totalCars ? Math.min(1, score / totalCars) : 0;
+  meterFill.style.right = (100 - ratio * 100) + '%';
+}
+
+function draw(ts){
+  if (!last) last = ts;
+  const dt = (ts - last) / 1000; // seconds
+  last = ts;
+
+  if (!paused){
+    acc += dt * 1000;
+    while (acc >= stepMs) { step(); acc -= stepMs; }
   }
-}, false);
+
+  // camera shake
+  if (shakeT > 0){
+    shakeT -= dt;
+    const a = (Math.random() - 0.5) * 4;
+    const b = (Math.random() - 0.5) * 4;
+    ctx.setTransform(DPR, 0, 0, DPR, a, b);
+  } else {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+
+  // draw frame
+  ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+  drawGrid();
+  drawMap();
+  drawTarget(ts/1000);
+  drawSnake();
+  drawParticles(dt);
+  drawCompass();
+  updateHUD();
+
+  if (!paused) requestAnimationFrame(draw);
+}
+
+/* ========= Quick start on canvas tap/click ========= */
+function softStartIfReady(){
+  if (overlay.style.display !== 'none'){
+    overlay.style.display = 'none';
+    resume();
+  }
+}
+canvas.addEventListener('click', softStartIfReady);
+canvas.addEventListener('touchstart', softStartIfReady, { passive:true });
+
+/* ========= Build theme picker & apply saved theme ========= */
+makeThemePicker();
+applyTheme(themeKey);
 </script>
 </body>
 </html>
